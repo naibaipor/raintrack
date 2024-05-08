@@ -199,7 +199,19 @@ const q3 = '&sheet=temp';
     }, delayInSeconds * 1000);
 }    
 
-</script><script>
+</script>
+<script>
+
+const img = document.getElementById("rotator")
+
+setInterval( () => {  
+   if(stopp == 1){ 
+   img.src = img.src;
+   }
+}, 300000) 
+
+</script>
+<script>
 function stop(){
 if(stopp==0){stopp=1;}else{stopp=0;}
 }
@@ -877,7 +889,6 @@ function normalImg() {
 </div>
 </div>
 </div>			
-
 
 
 

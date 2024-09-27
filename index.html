@@ -174,11 +174,12 @@ const q3 = '&sheet=temp';
         bbb = json.table.cols[0].label;
      
         myArr = bbb.split(" ");
-        document.getElementById("rotator").src = "https://file.royalrain.go.th/opendata/radar_data/cappi//rasisalai/" + myArr[0];   
+        document.getElementById("rotator").src = "https://file.royalrain.go.th/opendata/radar_data/cappi//rasisalai/" + myArr[0]; 
+        document.getElementById("ddll").href = "https://file.royalrain.go.th/opendata/radar_data/cappi//rasisalai/" + myArr[0]; 
         loop(myArr);
         })
  		
-       
+        
  function loop(){
  //alert(myArr[0]);
      for(let ii=0;ii<17;ii++){
@@ -621,7 +622,7 @@ if(stopp==0){stopp=1;}else{stopp=0;}
 		<font size="5" class="stitle">&nbsp;&nbsp;    เปิด-ปิด การเคลื่อนไหว </font>
 
 
-<a href="https://drive.google.com/uc?export=download&amp;id=1-A1wokq9_lDwjavkKY7wzDyk3X_uVvfG" proposed_file_name"="">
+<a href="" id ="ddll">
 	<button class="btn"><i class="fa fa-download"></i></button>
 </a>
 

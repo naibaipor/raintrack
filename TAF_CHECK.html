@@ -27,35 +27,56 @@
 
 function checkTimeRange(startTime, endTime) {
     const errors = [];
+    
+    // ดึงเดือนปัจจุบัน
+    const currentMonth = new Date().getMonth() + 1; // getMonth() คืนค่า 0-11 → บวก 1 ให้เป็น 1-12
+    const daysInCurrentMonth = new Date(new Date().getFullYear(), currentMonth, 0).getDate(); // จำนวนวันของเดือนนี้
+
     const startDay = parseInt(startTime.slice(0, 2));
     const startHour = parseInt(startTime.slice(2, 4));
     const endDay = parseInt(endTime.slice(0, 2));
     const endHour = parseInt(endTime.slice(2, 4));
 
-    // ตรวจสอบความถูกต้องของชั่วโมง Start (00 ได้ แต่ 24 ไม่ได้)
+    // ตรวจสอบความถูกต้องของชั่วโมง Start (00-23 เท่านั้น)
     if (startHour < 0 || startHour > 23) {
         errors.push(`Invalid start hour: ${startTime} (00-23 only)`);
     }
 
-    // ตรวจสอบความถูกต้องของชั่วโมง End (24 ได้ แต่ 00 ไม่ได้)
-    if (endHour < 0 || endHour > 24 || endHour === 0) {
+    // ตรวจสอบความถูกต้องของชั่วโมง End (01-24 เท่านั้น)
+    if (endHour < 1 || endHour > 24) {
         errors.push(`Invalid end hour: ${endTime} (01-24 only)`);
     }
 
-    // ตรวจสอบความถูกต้องของวัน (ต้องไม่เกิน 24 ชั่วโมง)
-    if (endDay < startDay || (endDay - startDay) * 24 + (endHour - startHour) > 24) {
+    // ตรวจสอบว่าวันอยู่ในช่วงที่ถูกต้องของเดือน
+    if (startDay < 1 || startDay > daysInCurrentMonth) {
+        errors.push(`Invalid start day: ${startTime} (Day must be 1-${daysInCurrentMonth})`);
+    }
+    if (endDay < 1 || endDay > daysInCurrentMonth) {
+        errors.push(`Invalid end day: ${endTime} (Day must be 1-${daysInCurrentMonth})`);
+    }
+
+    // คำนวณระยะเวลาห่างกัน (รองรับข้ามวัน)
+    let totalHours;
+    if (endDay < startDay) {
+        // กรณีข้ามเดือน (ถือว่าเป็นเดือนเดียวกัน)
+        totalHours = (daysInCurrentMonth - startDay) * 24 + (endDay * 24) + (endHour - startHour);
+    } else {
+        // กรณีอยู่ในเดือนเดียวกัน
+        totalHours = (endDay - startDay) * 24 + (endHour - startHour);
+    }
+
+    // ตรวจสอบว่าเกิน 24 ชั่วโมงหรือไม่
+    if (totalHours > 24) {
         errors.push(`Invalid time range: ${startTime}/${endTime} (maximum 24 hours)`);
     }
 
     // ตรวจสอบลำดับของเวลา (start ต้องมาก่อน end)
-    if (endDay === startDay && startHour >= endHour) {
+    if (totalHours <= 0) {
         errors.push(`Start time must be before end time: ${startTime}/${endTime}`);
     }
 
-    // คืนค่าข้อผิดพลาดทั้งหมดถ้ามี
     return errors.length > 0 ? errors : null;
 }
-
 
 function validateTAF() {
     const tafInput = document.getElementById("tafInput").value;

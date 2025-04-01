@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAF Change Group Validator</title>
+    <style>
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h2>TAF Change Group Validator</h2>
+    <textarea id="tafInput" placeholder="Paste or type TAF here..."></textarea>
+    <div id="errorMessages"></div>
+
+    <script>
+
+
+function checkTimeRange(startTime, endTime) {
+    const errors = [];
+    
+    // ดึงเดือนปัจจุบัน
+    const currentMonth = new Date().getMonth() + 1; // getMonth() คืนค่า 0-11 → บวก 1 ให้เป็น 1-12
+    const daysInCurrentMonth = new Date(new Date().getFullYear(), currentMonth, 0).getDate(); // จำนวนวันของเดือนนี้
+
+    const startDay = parseInt(startTime.slice(0, 2));
+    const startHour = parseInt(startTime.slice(2, 4));
+    const endDay = parseInt(endTime.slice(0, 2));
+    const endHour = parseInt(endTime.slice(2, 4));
+
+    // ตรวจสอบความถูกต้องของชั่วโมง Start (00-23 เท่านั้น)
+    if (startHour < 0 || startHour > 23) {
+        errors.push(`Invalid start hour: ${startTime} (00-23 only)`);
+    }
+
+    // ตรวจสอบความถูกต้องของชั่วโมง End (01-24 เท่านั้น)
+    if (endHour < 1 || endHour > 24) {
+        errors.push(`Invalid end hour: ${endTime} (01-24 only)`);
+    }
+
+    // ตรวจสอบว่าวันอยู่ในช่วงที่ถูกต้องของเดือน
+    if (startDay < 1 || startDay > daysInCurrentMonth) {
+        errors.push(`Invalid start day: ${startTime} (Day must be 1-${daysInCurrentMonth})`);
+    }
+    if (endDay < 1 || endDay > daysInCurrentMonth) {
+        errors.push(`Invalid end day: ${endTime} (Day must be 1-${daysInCurrentMonth})`);
+    }
+
+    // คำนวณระยะเวลาห่างกัน (รองรับข้ามวัน)
+    let totalHours;
+    if (endDay < startDay) {
+        // กรณีข้ามเดือน (ถือว่าเป็นเดือนเดียวกัน)
+        totalHours = (daysInCurrentMonth - startDay) * 24 + (endDay * 24) + (endHour - startHour);
+    } else {
+        // กรณีอยู่ในเดือนเดียวกัน
+        totalHours = (endDay - startDay) * 24 + (endHour - startHour);
+    }
+
+    // ตรวจสอบว่าเกิน 24 ชั่วโมงหรือไม่
+    if (totalHours > 24) {
+        errors.push(`Invalid time range: ${startTime}/${endTime} (maximum 24 hours)`);
+    }
+
+    // ตรวจสอบลำดับของเวลา (start ต้องมาก่อน end)
+    if (totalHours <= 0) {
+        errors.push(`Start time must be before end time: ${startTime}/${endTime}`);
+    }
+
+    return errors.length > 0 ? errors : null;
+}
+
+
+function validateTAF() {
+    const tafInput = document.getElementById("tafInput").value;
+    const errorMessages = document.getElementById("errorMessages");
+    errorMessages.innerHTML = "";
+
+    const tafLines = tafInput.split("\n");
+    const errors = [];
+    let currentWindDir = null;
+    let currentWindSpd = null;
+    let currentWindGust = null;
+
+    let mainStartTime = null;
+    let mainEndTime = null;
+
+    tafLines.forEach((line, index) => {
+
+        // ตรวจสอบช่วงเวลาหลักจากแถวแรก
+        if (index === 0) {
+            const mainTimeRangeMatch = line.match(/(\d{4})\/(\d{4})/);
+            if (mainTimeRangeMatch) {
+                mainStartTime = mainTimeRangeMatch[1];
+                mainEndTime = mainTimeRangeMatch[2];
+            }
+        }
+
+        // ตรวจสอบเวลาในกลุ่ม BECMG และ TEMPO
+        const timeResult = checkTime(line, index, errors, mainStartTime, mainEndTime);
+        mainStartTime = timeResult.mainStartTime;
+        mainEndTime = timeResult.mainEndTime;
+
+        // ตรวจสอบลมในกลุ่ม BECMG และ TEMPO
+        //checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust);
+
+        const windResult = checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust);
+        currentWindDir = windResult.currentWindDir;
+        currentWindSpd = windResult.currentWindSpd;
+        currentWindGust = windResult.currentWindGust;
+
+        // ตรวจสอบ FM (ต้องมีเวลาหลัง FM)
+        const fmMatch = line.match(/FM(\d{6})/);
+        if (fmMatch) {
+            const fmTime = fmMatch[1];
+            const fmHour = parseInt(fmTime.slice(2, 4));
+            if (fmHour > 23) {
+                errors.push(`Line ${index + 1}: FM time hour must be between 00 and 23.`);
+            }
+        }
+    });
+
+    if (errors.length > 0) {
+        errorMessages.innerHTML = errors.map(err => `<p class='error'>${err}</p>`).join("");
+    } else {
+        errorMessages.innerHTML = "<p>No errors found.</p>";
+    }
+}
+
+function checkTime(line, index, errors, mainStartTime, mainEndTime) {
+    const timeRangeMatch = line.match(/(\d{4})\/(\d{4})/);
+    if (timeRangeMatch) {
+        const startTime = timeRangeMatch[1];
+        const endTime = timeRangeMatch[2];
+        const timeError = checkTimeRange(startTime, endTime);
+        if (timeError) {
+            errors.push(`Line ${index + 1}: ${timeError}`);
+        }
+    }
+
+    const becmgMatch = line.match(/BECMG (\d{4})\/(\d{4})/);
+    const tempoMatch = line.match(/TEMPO (\d{4})\/(\d{4})/);
+
+    function isWithinMainRange(startTime, endTime) {
+        return (startTime >= mainStartTime && endTime <= mainEndTime);
+    }
+
+    if (becmgMatch) {
+        const startTime = becmgMatch[1];
+        const endTime = becmgMatch[2];
+        const timeError = checkTimeRange(startTime, endTime);
+        if (timeError) {
+            errors.push(`Line ${index + 1} (BECMG): ${timeError}`);
+        } else if (!isWithinMainRange(startTime, endTime)) {
+            errors.push(`Line ${index + 1} (BECMG): Time range ${startTime}/${endTime} is not within the main period ${mainStartTime}/${mainEndTime}.`);
+        }
+    }
+
+    if (tempoMatch) {
+        const startTime = tempoMatch[1];
+        const endTime = tempoMatch[2];
+        const timeError = checkTimeRange(startTime, endTime);
+        if (timeError) {
+            errors.push(`Line ${index + 1} (TEMPO): ${timeError}`);
+        } else if (!isWithinMainRange(startTime, endTime)) {
+            errors.push(`Line ${index + 1} (TEMPO): Time range ${startTime}/${endTime} is not within the main period ${mainStartTime}/${mainEndTime}.`);
+        }
+    }
+
+return { mainStartTime, mainEndTime };
+
+}
+
+
+
+function checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust) {
+ 
+console.log(currentWindDir);
+        // Extract initial wind direction from the main report line (if available)
+        if (currentWindDir === null) {
+            const mainWindMatch = line.match(/(VRB|\d{3})(\d{2})(?:G(\d{2}))?KT/);
+            if (mainWindMatch) {
+                currentWindDir = mainWindMatch[1] === "VRB" ? "VRB" : parseInt(mainWindMatch[1]);
+                currentWindSpd = parseInt(mainWindMatch[2]);
+                currentWindGust = mainWindMatch[3] ? parseInt(mainWindMatch[3]) : null;
+                console.log("Initial Wind Dir:", currentWindDir, "Speed:", currentWindSpd, "Gust:", currentWindGust);
+            }
+        }
+
+console.log(currentWindDir);
+
+        const becmgMatch = line.match(/BECMG (\d{4})\/(\d{4}) (VRB|\d{3})(\d{2})(?:G(\d{2}))?KT/);
+        const tempoMatch = line.match(/TEMPO (\d{4})\/(\d{4}) (VRB|\d{3})(\d{2})(?:G(\d{2}))?KT/);
+        const fmMatch = line.match(/FM(\d{6})/);
+
+        function checkWindChange(windDir, windSpeed, gustSpeed, label) {
+            let windSpeedError = false;
+            let gustSpeedError = false;
+            let windDirectionError = false;
+
+           // ตรวจสอบทิศทางลม
+            if (currentWindDir !== null && Math.abs(windDir - currentWindDir) < 60) {
+               windDirectionError = true;
+            }
+           // ตรวจสอบการเปลี่ยนความเร็วลม (ต้องต่างกันอย่างน้อย 10 KT ยกเว้นกรณีเริ่มต้นเป็น 0 KT ต้องต่างอย่างน้อย 5 KT)
+           if (
+               (currentWindSpd !== null && currentWindSpd === 0 && Math.abs(windSpeed - currentWindSpd) < 5) ||
+               (currentWindSpd !== null && windSpeed === 0 && Math.abs(windSpeed - currentWindSpd) < 5) ||
+               (currentWindSpd !== null && currentWindSpd !== 0 && Math.abs(windSpeed - currentWindSpd) < 10)
+) {
+               windSpeedError = true;
+           }
+
+            // ตรวจสอบ gust speed: ต้องมากกว่าหรือเท่ากับความเร็วลมปกติ + 10 KT
+            if (gustSpeed !== null && gustSpeed < windSpeed + 10) {
+                gustSpeedError = true;
+            }
+            // ตรวจสอบ windSpeed: ต้องมากกว่าหรือเท่ากับความเร็วลมปกติ + 10 KT เมื่อมี gust
+            if (gustSpeed !== null && windSpeed < 10) {
+                gustSpeedError = true;
+            }
+
+            console.log(windSpeedError,gustSpeedError ,windDirectionError,currentWindSpd,windSpeed);
+
+            // แสดง error message
+
+if ( gustSpeed === null) {
+            if (
+                (currentWindSpd === 0 && windSpeedError) ||
+                (windSpeed === 0 && windSpeedError)
+            ) {
+                errors.push(`Line ${index + 1}: ${label} wind speed change from 0KT must be at least 5KT.`);
+            } else {             
+                if (currentWindGust !== null) {
+                    errors.push(`Line ${index + 1}: ${label} wind speed change must be at least 10KT from the previous speed.`);  
+                } else { 
+                    if ((windDirectionError && windSpeedError) || (windDir === "VRB" && windSpeedError)) {
+                        errors.push(`Line ${index + 1}: ${label} wind direction change must be at least 60° from the previous direction or wind speed change must be at least 10KT from the previous speed.`); 
+                    }
+                }
+            } 
+} else {           
+            if (gustSpeedError) {
+                if (windSpeed < 10) {
+                errors.push(`Line ${index + 1}: ${label} wind speed for gust must be at least 10KT.`);
+                } else {
+                errors.push(`Line ${index + 1}: ${label} gust speed must be at least 10KT higher than the wind speed.`);
+                }
+            } 
+} 
+
+            // อัปเดตค่าปัจจุบัน
+            currentWindDir = windDir;
+            currentWindSpd = windSpeed;
+            currentWindGust = gustSpeed;
+        }
+
+        if (becmgMatch) {
+            const windDir = becmgMatch[3] === "VRB" ? "VRB" : parseInt(becmgMatch[3]);
+            const windSpeed = parseInt(becmgMatch[4]);
+            const gustSpeed = becmgMatch[5] ? parseInt(becmgMatch[5]) : null;
+            console.log("BECMG Wind Dir:", windDir, "Speed:", windSpeed, "Gust:", gustSpeed);
+            checkWindChange(windDir, windSpeed, gustSpeed, "BECMG");
+        }
+
+        if (tempoMatch) {
+            const windDir = tempoMatch[3] === "VRB" ? "VRB" : parseInt(tempoMatch[3]);
+            const windSpeed = parseInt(tempoMatch[4]);
+            const gustSpeed = tempoMatch[5] ? parseInt(tempoMatch[5]) : null;
+            console.log("TEMPO Wind Dir:", windDir, "Speed:", windSpeed, "Gust:", gustSpeed);
+            checkWindChange(windDir, windSpeed, gustSpeed, "TEMPO");
+        }
+
+return { currentWindDir, currentWindSpd, currentWindGust };
+
+    }
+
+document.getElementById("tafInput").addEventListener("input", validateTAF);
+
+
+    </script>
+</body>
+</html>

@@ -77,6 +77,8 @@ function checkTimeRange(startTime, endTime) {
     return errors.length > 0 ? errors : null;
 }
 
+
+
 function validateTAF() {
     const tafInput = document.getElementById("tafInput").value;
     const errorMessages = document.getElementById("errorMessages");
@@ -94,13 +96,27 @@ function validateTAF() {
         let currentWindDir = null;
         let currentWindSpd = null;
         let currentWindGust = null;
+        
+        let mainStartTime = null;
+        let mainEndTime = null;
 
         // หาชื่อสนามบิน (เช่น VTUU) เพื่อใส่ใน error message
         const stationMatch = tafLines[0]?.match(/TAF\s+([A-Z]{4})/);
         const station = stationMatch ? stationMatch[1] : `Section ${sectionIndex + 1}`;
 
         tafLines.forEach((line, index) => {
-            checkTime(line, index, errors);
+        
+                // ตรวจสอบช่วงเวลาหลักจากแถวแรก
+        if (index === 0) {
+            const mainTimeRangeMatch = line.match(/(\d{4})\/(\d{4})/);
+            if (mainTimeRangeMatch) {
+                mainStartTime = mainTimeRangeMatch[1];
+                mainEndTime = mainTimeRangeMatch[2];
+            }
+        }
+        
+            checkTime(line, index, errors, mainStartTime, mainEndTime);
+            
             const windResult = checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust);
             currentWindDir = windResult.currentWindDir;
             currentWindSpd = windResult.currentWindSpd;
@@ -129,7 +145,7 @@ function validateTAF() {
 }
 
 
-function checkTime(line, index, errors) {
+function checkTime(line, index, errors, mainStartTime, mainEndTime) {
     const timeRangeMatch = line.match(/(\d{4})\/(\d{4})/);
     if (timeRangeMatch) {
         const startTime = timeRangeMatch[1];
@@ -143,12 +159,18 @@ function checkTime(line, index, errors) {
     const becmgMatch = line.match(/BECMG (\d{4})\/(\d{4})/);
     const tempoMatch = line.match(/TEMPO (\d{4})\/(\d{4})/);
 
+    function isWithinMainRange(startTime, endTime) {
+        return (startTime >= mainStartTime && endTime <= mainEndTime);
+    }
+
     if (becmgMatch) {
         const startTime = becmgMatch[1];
         const endTime = becmgMatch[2];
         const timeError = checkTimeRange(startTime, endTime);
         if (timeError) {
             errors.push(`Line ${index + 1} (BECMG): ${timeError}`);
+        } else if (!isWithinMainRange(startTime, endTime)) {
+            errors.push(`Line ${index + 1} (BECMG): Time range ${startTime}/${endTime} is not within the main period ${mainStartTime}/${mainEndTime}.`);
         }
     }
 
@@ -158,9 +180,12 @@ function checkTime(line, index, errors) {
         const timeError = checkTimeRange(startTime, endTime);
         if (timeError) {
             errors.push(`Line ${index + 1} (TEMPO): ${timeError}`);
+        } else if (!isWithinMainRange(startTime, endTime)) {
+            errors.push(`Line ${index + 1} (TEMPO): Time range ${startTime}/${endTime} is not within the main period ${mainStartTime}/${mainEndTime}.`);
         }
     }
 }
+
 
 
 function checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust) {

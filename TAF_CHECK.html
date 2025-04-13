@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TAF Change Group Validator</title>
@@ -83,41 +82,52 @@ function validateTAF() {
     const errorMessages = document.getElementById("errorMessages");
     errorMessages.innerHTML = "";
 
-    const tafLines = tafInput.split("\n");
-    const errors = [];
-    let currentWindDir = null;
-    let currentWindSpd = null;
-    let currentWindGust = null;
+    const allErrors = [];
 
-    tafLines.forEach((line, index) => {
-        // ตรวจสอบเวลาในกลุ่ม BECMG และ TEMPO
-        checkTime(line, index, errors);
+    // แยกข่าว TAF หลายข่าวโดยใช้ regex ที่หา TAF XXXX (ICAO)
+    const tafSections = tafInput.split(/(?=TAF [A-Z]{4})/g);
 
-        // ตรวจสอบลมในกลุ่ม BECMG และ TEMPO
-        //checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust);
+    tafSections.forEach((section, sectionIndex) => {
+        const errors = [];
+        const tafLines = section.trim().split("\n").map(line => line.trim()).filter(line => line);
+        
+        let currentWindDir = null;
+        let currentWindSpd = null;
+        let currentWindGust = null;
 
-        const windResult = checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust);
-        currentWindDir = windResult.currentWindDir;
-        currentWindSpd = windResult.currentWindSpd;
-        currentWindGust = windResult.currentWindGust;
+        // หาชื่อสนามบิน (เช่น VTUU) เพื่อใส่ใน error message
+        const stationMatch = tafLines[0]?.match(/TAF\s+([A-Z]{4})/);
+        const station = stationMatch ? stationMatch[1] : `Section ${sectionIndex + 1}`;
 
-        // ตรวจสอบ FM (ต้องมีเวลาหลัง FM)
-        const fmMatch = line.match(/FM(\d{6})/);
-        if (fmMatch) {
-            const fmTime = fmMatch[1];
-            const fmHour = parseInt(fmTime.slice(2, 4));
-            if (fmHour > 23) {
-                errors.push(`Line ${index + 1}: FM time hour must be between 00 and 23.`);
+        tafLines.forEach((line, index) => {
+            checkTime(line, index, errors);
+            const windResult = checkWind(line, index, errors, currentWindDir, currentWindSpd, currentWindGust);
+            currentWindDir = windResult.currentWindDir;
+            currentWindSpd = windResult.currentWindSpd;
+            currentWindGust = windResult.currentWindGust;
+
+            const fmMatch = line.match(/FM(\d{6})/);
+            if (fmMatch) {
+                const fmTime = fmMatch[1];
+                const fmHour = parseInt(fmTime.slice(2, 4));
+                if (fmHour > 23) {
+                    errors.push(`Line ${index + 1}: FM time hour must be between 00 and 23.`);
+                }
             }
+        });
+
+        if (errors.length > 0) {
+            allErrors.push(`<strong>${station}</strong><br>` + errors.map(err => `<p class='error'>${err}</p>`).join(""));
         }
     });
 
-    if (errors.length > 0) {
-        errorMessages.innerHTML = errors.map(err => `<p class='error'>${err}</p>`).join("");
+    if (allErrors.length > 0) {
+        errorMessages.innerHTML = allErrors.join("<hr>");
     } else {
         errorMessages.innerHTML = "<p>No errors found.</p>";
     }
 }
+
 
 function checkTime(line, index, errors) {
     const timeRangeMatch = line.match(/(\d{4})\/(\d{4})/);
@@ -198,25 +208,30 @@ console.log(currentWindDir);
 
             console.log(windSpeedError,gustSpeedError ,windDirectionError,currentWindSpd,windSpeed);
 
-            // แสดง error message
-            if (
-                (currentWindSpd === 0 && windSpeedError) ||
-                (windSpeed === 0 && windSpeedError)
-            ) {
-                errors.push(`Line ${index + 1}: ${label} wind speed change from 0KT must be at least 5KT.`);
-            } else {             
-                if (currentWindGust !== null) {
-                    errors.push(`Line ${index + 1}: ${label} wind speed change must be at least 10KT from the previous speed.`);  
-                } else { 
-                    if ((windDirectionError && windSpeedError) || (windDir === "VRB" && windSpeedError)) {
-                        errors.push(`Line ${index + 1}: ${label} wind direction change must be at least 60° from the previous direction.`);
-                        errors.push(`Line ${index + 1}: ${label} wind speed change must be at least 10KT from the previous speed.`);                      
-                    }
-                }
-            }            
-            if (gustSpeedError) {
-                errors.push(`Line ${index + 1}: ${label} gust speed must be at least 10KT higher than the wind speed.`);
-            }  
+if (gustSpeed === null) {
+    // แสดง error message สำหรับ gustSpeed ที่ไม่มีค่า
+
+    const isWindSpeedZero = currentWindSpd === 0 || windSpeed === 0;
+
+    if (isWindSpeedZero && windSpeedError) {
+        errors.push(`Line ${index + 1}: ${label} wind speed change from 0KT must be at least 5KT.`);
+    } 
+    else if (currentWindGust !== null) {
+        errors.push(`Line ${index + 1}: ${label} wind speed change must be at least 10KT from the previous speed.`);
+    } 
+    else if (
+        (windDirectionError && windSpeedError) ||
+        (windDir === "VRB" && windSpeedError)
+    ) {
+        errors.push(`Line ${index + 1}: ${label} wind direction change must be at least 60° from the previous direction.`);
+        errors.push(`Line ${index + 1}: ${label} wind speed change must be at least 10KT from the previous speed.`);
+    }
+}
+
+if (gustSpeedError) {
+    errors.push(`Line ${index + 1}: ${label} gust speed must be at least 10KT higher than the wind speed.`);
+}
+
 
             // อัปเดตค่าปัจจุบัน
             currentWindDir = windDir;
@@ -248,5 +263,6 @@ document.getElementById("tafInput").addEventListener("input", validateTAF);
 
 
     </script>
-</body>
-</html>
+
+
+</body></html>

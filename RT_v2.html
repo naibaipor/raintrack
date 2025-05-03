@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rain Track - Radar</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+#radar-container {
+  position: relative;
+  display: inline-block;
+  width: 90vw;
+  height: 90vh;
+}
+
+#radar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border: 2px solid #444;
+  cursor: crosshair;
+}
+
+    .point { position: absolute; width: 10px; height: 10px; background: red; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+    #info { margin-top: 20px; }
+
+
+#lens {
+  display: none;
+  position: absolute;
+  width: 150px;
+  height: 150px;
+  border: 2px solid black;
+  overflow: hidden;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 999;
+}
+
+#lens img {
+  position: absolute;
+  transform-origin: top left;
+  will-change: transform;
+  width: auto;
+  height: auto;
+  transform: scale(2.5); /* หรือ match กับ zoom */
+}
+
+  </style>
+</head>
+<body>
+
+  <h2>Rain Track - Radar</h2>
+  <p>คลิกเพื่อเลือกจุดฝนในเรดาร์ 2 ภาพ</p>
+
+<div style="margin-top: 10px;">
+  <label>
+    <input type="radio" name="zoomMode" value="checkbox" checked>
+    ใช้กล่องติ๊กเปิด/ปิดแว่นขยาย
+  </label>
+  <label>
+    <input type="radio" name="zoomMode" value="shift">
+    ใช้ปุ่ม Shift เพื่อเปิดแว่นขยาย
+  </label>
+</div>
+<div style="margin-top: 5px;">
+  <label><input type="checkbox" id="toggleZoom"> เปิดแว่นขยาย (เมื่อเลือกโหมดกล่องติ๊ก)</label>
+</div>
+
+
+  <div id="radar-container">
+<div class="lens" id="lens"><img src="" alt=""></div>
+
+    <img id="radar-image" src="" alt="Radar Image" style="display: none;">
+    <div id="point1" class="point" style="display: none;"></div>
+    <div id="point2" class="point" style="display: none;"></div>
+  </div>
+
+  <div>
+    <button id="prev">← ภาพก่อนหน้า</button>
+    <button id="next">ภาพถัดไป →</button>
+  </div>
+
+  <div id="info"></div>
+
+  <script>
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbyvk5V8jozvPYCwC5-W6wfOyiQ9FxFsioLihFQ51FmV3eckRPYr-Ixq1Y4mCjZrYQn1/exec"; // ใส่ URL Apps Script ที่ได้จากขั้นตอนก่อน
+
+    const radarImage = document.getElementById("radar-image");
+    const container = document.getElementById("radar-container");
+    const point1 = document.getElementById("point1");
+    const point2 = document.getElementById("point2");
+    const info = document.getElementById("info");
+    const prevBtn = document.getElementById("prev");
+    const nextBtn = document.getElementById("next");
+
+let imageUrls = [];
+let imageIndex = 0;
+
+
+let clickCount = 0;
+let positions = [null, null, null]; // จุดที่ 1, 2, 3
+let imageIndices = [null, null]; // index ของจุด 1 และ 2
+const timePerImage = 0.1; // 6 นาทีต่อเฟรม = 0.1 ชั่วโมง
+
+let speed;
+
+// เพิ่ม element สำหรับ point3
+const point3 = document.createElement('div');
+point3.className = 'point';
+point3.style.background = 'blue';
+point3.style.display = 'none';
+container.appendChild(point3);
+
+    async function loadImages() {
+      const res = await fetch(`${scriptUrl}?ts=${Date.now()}`);
+      const data = await res.json();
+      imageUrls = data.imageUrls;
+      updateImage();
+    }
+
+async function loadImages3() {
+fetch(scriptUrl)
+  .then(res => res.text())
+  .then(data => {
+    const json = JSON.parse(data.substring(47).slice(0, -2));
+    const urls = json.table.rows.map(row => row.c[0]?.v).filter(v => v);
+    console.log(urls);
+    imageUrls = urls;
+    updateImage();
+  });
+}
+
+
+async function loadImages2() {
+const url = 'https://docs.google.com/spreadsheets/d/';
+const ssid = '1QMB8PFkT4f7je2tQVw-TbjvcOjSlidHsSfopfBrB9_k';
+const q1 = '/gviz/tq?';
+const q2 = 'tqx=out:json';
+const q3 = '&sheet=radar';
+
+let url1 = `${url}${ssid}${q1}&${q2}${q3}`;
+
+fetch(url1)
+  .then(res => res.text())
+  .then(data => {
+    // ตัด prefix/suffix ของ response JSONP
+    const json = JSON.parse(data.substring(47).slice(0, -2));
+
+    // ดึง rows แล้ว map ค่าที่ต้องการ
+    const urlArray = json.table.rows
+      .map(row => row.c[0]?.v)   // ใช้ ?. ป้องกัน error ถ้าค่า null
+      .filter(url => url);       // ตัดค่าที่เป็น null หรือ undefined
+
+    // ตัวอย่างใช้งาน
+    console.log(urlArray); // แสดง array ทั้งหมด
+    imageUrls = urlArray;
+    updateImage();
+  });
+
+}
+    
+// คำนวณ bearing (ทิศทาง)
+function calculateBearing(p1, p2) {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        angle = angle + 90 - 180;
+    if (angle < 0) angle += 360;
+  return angle; // ปรับให้อยู่ในช่วง 0–360°
+}
+
+function updateImage() {  
+  radarImage.src = imageUrls[imageIndex];
+  radarImage.style.display = '';
+  info.innerHTML = `ภาพที่ ${imageIndex + 1} จาก ${imageUrls.length}`;
+
+  if (clickCount === 0) {
+    // ยังไม่ได้เริ่มคลิกเลย → รีเซ็ตทุกจุด
+    point1.style.display = 'none';
+    point2.style.display = 'none';
+    positions = [];
+    imageIndices = [];
+  } else if (clickCount === 1) {
+    // คลิกไปแล้ว 1 จุด → คงไว้จุดที่ 1 แต่ลบจุดที่ 2
+    point2.style.display = 'none';
+    positions[1] = null;
+    imageIndices[1] = null;
+  }
+}
+
+
+radarImage.onload = () => {
+  if (positions[0]) {
+    point1.style.left = positions[0].x + 'px';
+    point1.style.top = positions[0].y + 'px';
+    point1.style.display = 'block';
+  }
+  if (clickCount >= 2 && positions[1]) {
+    point2.style.left = positions[1].x + 'px';
+    point2.style.top = positions[1].y + 'px';
+    point2.style.display = 'block';
+  }
+  if (clickCount >= 3 && positions[2]) {
+    point3.style.left = positions[2].x + 'px';
+    point3.style.top = positions[2].y + 'px';
+    point3.style.display = 'block';
+  }
+};
+
+
+// คลิกที่ภาพ
+radarImage.addEventListener('click', (e) => {
+  const rect = radarImage.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  if (clickCount === 0) {
+    positions[0] = { x, y };
+    imageIndices[0] = imageIndex;
+    point1.style.left = x + 'px';
+    point1.style.top = y + 'px';
+    point1.style.display = 'block';
+    clickCount = 1;
+    info.innerHTML = `กำลังรอจุดที่ 2...`;
+  } else if (clickCount === 1) {
+    positions[1] = { x, y };
+    imageIndices[1] = imageIndex;
+    point2.style.left = x + 'px';
+    point2.style.top = y + 'px';
+    point2.style.display = 'block';
+
+    const dx = positions[1].x - positions[0].x;
+    const dy = positions[1].y - positions[0].y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const timeDiff = imageIndices[0] - imageIndices[1];
+    speed = timeDiff === 0 ? 'คำนวณไม่ได้ (เวลาเป็น 0)' : parseFloat((distance / (timeDiff * timePerImage)).toFixed(2));
+    const speedText = typeof speed === 'string' ? speed : `${speed} กม./ชม.`;
+
+    info.innerHTML += `<br>ระยะทางจากจุด 1 → 2: ${(distance).toFixed(2)} กม.<br>เวลาห่างกัน: ${timeDiff * timePerImage} นาที`;
+    info.innerHTML += `<br>Speed: ${speedText}<br>กำลังรอจุดที่ 3...`;
+    clickCount = 2;
+} else if (clickCount === 2) {
+  positions[2] = { x, y };
+  point3.style.left = x + 'px';
+  point3.style.top = y + 'px';
+  point3.style.display = 'block';
+
+  const dx = positions[2].x - positions[1].x;
+  const dy = positions[2].y - positions[1].y;
+  const distance23 = Math.sqrt(dx * dx + dy * dy).toFixed(2);
+  const bearing = calculateBearing(positions[1], positions[2]).toFixed(2);
+  
+  if (typeof speed !== 'string') {
+    const ttt = ((parseFloat(distance23) / parseFloat(speed)) * 60).toFixed(2);
+    info.innerHTML += `<br>ระยะทางจากจุด 2 → 3: ${distance23} กม.<br>ทิศทาง: ${bearing}°<br>ใช้เวลา: ${ttt} นาที`;
+  } else {
+    info.innerHTML += `<br>ระยะทางจากจุด 2 → 3: ${distance23} กม.<br>ทิศทาง: ${bearing}°<br>ใช้เวลา: ไม่สามารถคำนวณได้ (Speed ไม่พร้อม)`;
+  }
+
+  clickCount = 3;
+}
+ else {
+    // รีเซ็ต
+    clickCount = 0;
+    positions = [null, null, null];
+    imageIndices = [null, null];
+    point1.style.display = 'none';
+    point2.style.display = 'none';
+    point3.style.display = 'none';
+    info.innerHTML = `คลิกเพื่อเลือกจุดที่ 1`;
+  }
+});
+
+    prevBtn.onclick = () => {
+      if (imageIndex > 0) {
+        imageIndex--;
+        updateImage();
+      }
+    };
+
+    nextBtn.onclick = () => {
+      if (imageIndex < imageUrls.length - 1) {
+        imageIndex++;
+        updateImage();
+      }
+    };
+
+// เรียก loadImages() ทุก 5 นาที
+function startAutoUpdate(interval = 5 * 60 * 1000) {
+  loadImages3(); // โหลดรอบแรกทันที
+  setInterval(loadImages, interval); // โหลดซ้ำทุกช่วงเวลา
+}
+
+// เรียกเมื่อเริ่มต้น
+startAutoUpdate();
+
+
+let zoomEnabled = false;
+let zoomMode = 'checkbox';
+let shiftPressed = false;
+
+const zoomModeInputs = document.querySelectorAll('input[name="zoomMode"]');
+
+zoomModeInputs.forEach(input => {
+  input.addEventListener('change', () => {
+    zoomMode = document.querySelector('input[name="zoomMode"]:checked').value;
+    updateLensVisibility();
+  });
+});
+
+toggleZoom.addEventListener("change", () => {
+  zoomEnabled = toggleZoom.checked;
+  updateLensVisibility();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Shift") {
+    shiftPressed = true;
+    updateLensVisibility();
+  }
+});
+
+document.addEventListener("keyup", (e) => {
+  if (e.key === "Shift") {
+    shiftPressed = false;
+    updateLensVisibility();
+  }
+});
+
+function updateLensVisibility() {
+  if (zoomMode === 'checkbox') {
+    lens.style.display = zoomEnabled ? 'block' : 'none';
+  } else if (zoomMode === 'shift') {
+    lens.style.display = shiftPressed ? 'block' : 'none';
+  }
+}
+
+const lens = document.getElementById("lens");
+const lensImg = lens.querySelector("img");
+
+const zoom = 2.5; // แนะนำมากกว่า 1
+
+radarImage.addEventListener("mousemove", function (e) {
+  const rect = radarImage.getBoundingClientRect();                               
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+
+  const shouldShowZoom =
+    (zoomMode === 'checkbox' && zoomEnabled) ||
+    (zoomMode === 'shift' && shiftPressed);
+
+  if (!shouldShowZoom) {
+    lens.style.display = "none";
+    return;
+  }
+
+  lens.style.display = "block";
+  lens.style.left = `${x - lens.offsetWidth / 2}px`;
+  lens.style.top = `${y - lens.offsetHeight / 2}px`;
+
+  lensImg.src = radarImage.src;
+
+  // คำนวณตำแหน่งภาพจริง
+  const scaleX = radarImage.naturalWidth / radarImage.clientWidth;
+  const scaleY = radarImage.naturalHeight / radarImage.clientHeight;
+
+if  (radarImage.width > radarImage.height) {
+  ff = ((radarImage.width - radarImage.height) * (window.innerWidth/radarImage.width)) -70;
+  fff = (radarImage.width / radarImage.height ) * 0.925;
+
+  console.log(` {window.innerWidth : ${window.innerWidth} / radarImage.width : ${radarImage.width} `);
+
+  const realX = x * scaleX;
+  const realY = y * scaleY;
+
+  lensImg.style.left = `${(-realX * zoom + lens.offsetWidth / 2)*fff + ff}px`;
+  lensImg.style.top = `${-realY * zoom + lens.offsetHeight / 2}px`;
+
+} else {
+
+  //ff = 220;
+  ff = ((window.innerHeight-radarImage.width)+(radarImage.height-radarImage.width))*(radarImage.width/window.innerHeight);
+  //ff = ((window.innerHeight-radarImage.width)+(radarImage.height-radarImage.width))*1.07;
+  fff = (radarImage.height / radarImage.width ) * 1.09;
+
+  console.log(` {window.innerHeight : ${window.innerHeight} / radarImage.width : ${radarImage.width}  / radarImage.height : ${radarImage.height} `);
+
+  const realX = x * scaleX;
+  const realY = y * scaleY;
+
+  lensImg.style.left = `${-realX * zoom + lens.offsetWidth / 2}px`;
+  lensImg.style.top = `${(-realY * zoom + lens.offsetHeight / 2)*fff + ff}px`;
+
+}
+});
+
+
+
+  </script>
+
+</body>
+</html>

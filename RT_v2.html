@@ -42,7 +42,7 @@
   will-change: transform;
   width: auto;
   height: auto;
-  transform: scale(2.5); /* หรือ match กับ zoom */
+  transform: scale(1); /* หรือ match กับ zoom */
 }
 
   </style>
@@ -288,7 +288,7 @@ radarImage.addEventListener('click', (e) => {
 // เรียก loadImages() ทุก 5 นาที
 function startAutoUpdate(interval = 5 * 60 * 1000) {
   loadImages3(); // โหลดรอบแรกทันที
-  setInterval(loadImages, interval); // โหลดซ้ำทุกช่วงเวลา
+  setInterval(loadImages3, interval); // โหลดซ้ำทุกช่วงเวลา
 }
 
 // เรียกเมื่อเริ่มต้น
@@ -341,9 +341,8 @@ const lensImg = lens.querySelector("img");
 const zoom = 2.5; // แนะนำมากกว่า 1
 
 radarImage.addEventListener("mousemove", function (e) {
-  const rect = radarImage.getBoundingClientRect();                               
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  const rect = radarImage.getBoundingClientRect();
+  const isPortrait = radarImage.clientWidth < radarImage.clientHeight;
 
   const shouldShowZoom =
     (zoomMode === 'checkbox' && zoomEnabled) ||
@@ -355,44 +354,53 @@ radarImage.addEventListener("mousemove", function (e) {
   }
 
   lens.style.display = "block";
-  lens.style.left = `${x - lens.offsetWidth / 2}px`;
-  lens.style.top = `${y - lens.offsetHeight / 2}px`;
-
   lensImg.src = radarImage.src;
 
-  // คำนวณตำแหน่งภาพจริง
-  const scaleX = radarImage.naturalWidth / radarImage.clientWidth;
-  const scaleY = radarImage.naturalHeight / radarImage.clientHeight;
+  let x, y, ratio, offsetX = 0, offsetY = 0;
 
-if  (radarImage.width > radarImage.height) {
-  ff = ((radarImage.width - radarImage.height) * (window.innerWidth/radarImage.width)) -70;
-  fff = (radarImage.width / radarImage.height ) * 0.925;
+  if (isPortrait) {
+    // Portrait Mode
+    ratio = radarImage.naturalHeight / radarImage.naturalWidth;
+    const verticalPadding = (radarImage.clientHeight - ratio * radarImage.clientWidth) / 2;
 
-  console.log(` {window.innerWidth : ${window.innerWidth} / radarImage.width : ${radarImage.width} `);
+    x = e.clientX - rect.left;
+    y = e.clientY - rect.top - verticalPadding;
 
-  const realX = x * scaleX;
-  const realY = y * scaleY;
+    offsetY = verticalPadding;
 
-  lensImg.style.left = `${(-realX * zoom + lens.offsetWidth / 2)*fff + ff}px`;
-  lensImg.style.top = `${-realY * zoom + lens.offsetHeight / 2}px`;
+    lensImg.style.width = `${radarImage.clientWidth * zoom}px`;
+    lensImg.style.height = `${ratio * radarImage.clientWidth * zoom}px`;
+  } else {
+    // Landscape Mode
+    ratio = radarImage.naturalWidth / radarImage.naturalHeight;
+    const horizontalPadding = (radarImage.clientWidth - ratio * radarImage.clientHeight) / 2;
 
-} else {
+    x = e.clientX - rect.left - horizontalPadding;
+    y = e.clientY - rect.top;
 
-  //ff = 220;
-  ff = ((window.innerHeight-radarImage.width)+(radarImage.height-radarImage.width))*(radarImage.width/window.innerHeight);
-  //ff = ((window.innerHeight-radarImage.width)+(radarImage.height-radarImage.width))*1.07;
-  fff = (radarImage.height / radarImage.width ) * 1.09;
+    offsetX = horizontalPadding;
 
-  console.log(` {window.innerHeight : ${window.innerHeight} / radarImage.width : ${radarImage.width}  / radarImage.height : ${radarImage.height} `);
+    lensImg.style.width = `${ratio * radarImage.clientHeight * zoom}px`;
+    lensImg.style.height = `${radarImage.clientHeight * zoom}px`;
+  }
 
-  const realX = x * scaleX;
-  const realY = y * scaleY;
+  // ตั้งตำแหน่งของ lens
+  lens.style.left = `${x - lens.offsetWidth / 2 + offsetX}px`;
+  lens.style.top = `${y - lens.offsetHeight / 2 + offsetY}px`;
 
-  lensImg.style.left = `${-realX * zoom + lens.offsetWidth / 2}px`;
-  lensImg.style.top = `${(-realY * zoom + lens.offsetHeight / 2)*fff + ff}px`;
+  // คำนวณตำแหน่งของภาพขยาย
+  const zoomX = -x * zoom + lens.offsetWidth / 2;
+  const zoomY = -y * zoom + lens.offsetHeight / 2;
 
-}
+  lensImg.style.left = `${zoomX}px`;
+  lensImg.style.top = `${zoomY}px`;
+
+  // Debug logs
+  console.log(`x: ${x}, y: ${y}`);
+  console.log(`naturalWidth: ${radarImage.naturalWidth}, naturalHeight: ${radarImage.naturalHeight}`);
+  console.log(`clientWidth: ${radarImage.clientWidth}, clientHeight: ${radarImage.clientHeight}`);
 });
+
 
 
 

@@ -210,6 +210,15 @@ radarImage.onload = () => {
 
 // คลิกที่ภาพ
 radarImage.addEventListener('click', (e) => {
+  const isPortrait = radarImage.clientWidth < radarImage.clientHeight; 
+ if (isPortrait) {
+    // Portrait Mode
+    ratio = radarImage.clientWidth / radarImage.naturalWidth;
+  } else {
+    // Landscape Mode
+    ratio = radarImage.clientHeight / radarImage.naturalHeight;
+}
+
   const rect = radarImage.getBoundingClientRect();
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
@@ -231,12 +240,15 @@ radarImage.addEventListener('click', (e) => {
 
     const dx = positions[1].x - positions[0].x;
     const dy = positions[1].y - positions[0].y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    const distance = Math.sqrt(dx * dx + dy * dy)/ratio*0.65;
+
+    console.log(`ratio : ${ratio} | x : ${x} | y : ${y} | radarImage.clientWidth : ${radarImage.clientWidth} | radarImage.naturalWidth : ${radarImage.naturalWidth} | radarImage.clientHeight : ${radarImage.clientHeight} | radarImage.naturalHeight : ${radarImage.naturalHeight}`);
+   
     const timeDiff = imageIndices[0] - imageIndices[1];
     speed = timeDiff === 0 ? 'คำนวณไม่ได้ (เวลาเป็น 0)' : parseFloat((distance / (timeDiff * timePerImage)).toFixed(2));
     const speedText = typeof speed === 'string' ? speed : `${speed} กม./ชม.`;
 
-    info.innerHTML += `<br>ระยะทางจากจุด 1 → 2: ${(distance).toFixed(2)} กม.<br>เวลาห่างกัน: ${timeDiff * timePerImage} นาที`;
+    info.innerHTML += `<br>ระยะทางจากจุด 1 → 2: ${(distance).toFixed(2)} กม.<br>เวลาห่างกัน: ${timeDiff * timePerImage} ชม.`;
     info.innerHTML += `<br>Speed: ${speedText}<br>กำลังรอจุดที่ 3...`;
     clickCount = 2;
 } else if (clickCount === 2) {
@@ -247,7 +259,7 @@ radarImage.addEventListener('click', (e) => {
 
   const dx = positions[2].x - positions[1].x;
   const dy = positions[2].y - positions[1].y;
-  const distance23 = Math.sqrt(dx * dx + dy * dy).toFixed(2);
+  const distance23 = (Math.sqrt(dx * dx + dy * dy)/ratio*0.65).toFixed(2);
   const bearing = calculateBearing(positions[1], positions[2]).toFixed(2);
   
   if (typeof speed !== 'string') {
@@ -396,9 +408,9 @@ radarImage.addEventListener("mousemove", function (e) {
   lensImg.style.top = `${zoomY}px`;
 
   // Debug logs
-  console.log(`x: ${x}, y: ${y}`);
-  console.log(`naturalWidth: ${radarImage.naturalWidth}, naturalHeight: ${radarImage.naturalHeight}`);
-  console.log(`clientWidth: ${radarImage.clientWidth}, clientHeight: ${radarImage.clientHeight}`);
+  //console.log(`x: ${x}, y: ${y}`);
+  //console.log(`naturalWidth: ${radarImage.naturalWidth}, naturalHeight: ${radarImage.naturalHeight}`);
+  //console.log(`clientWidth: ${radarImage.clientWidth}, clientHeight: ${radarImage.clientHeight}`);
 });
 
 

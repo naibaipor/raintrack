@@ -171,6 +171,7 @@ function calculateBearing(p1, p2) {
 
 function updateImage() {  
   radarImage.src = imageUrls[imageIndex];
+  lensImg.src = radarImage.src;
   radarImage.style.display = '';
   info.innerHTML = `ภาพที่ ${imageIndex + 1} จาก ${imageUrls.length}`;
 
@@ -296,6 +297,20 @@ radarImage.addEventListener('click', (e) => {
         updateImage();
       }
     };
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowLeft') {
+    if (imageIndex > 0) {
+      imageIndex--;
+      updateImage();
+    }
+  } else if (event.key === 'ArrowRight') {
+    if (imageIndex < imageUrls.length - 1) {
+      imageIndex++;
+      updateImage();
+    }
+  }
+});
 
 // เรียก loadImages() ทุก 5 นาที
 function startAutoUpdate(interval = 5 * 60 * 1000) {

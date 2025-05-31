@@ -176,9 +176,50 @@ function checkTime(line, index, errors, mainStartTime, mainEndTime) {
     const becmgMatch = line.match(/BECMG (\d{4})\/(\d{4})/);
     const tempoMatch = line.match(/TEMPO (\d{4})\/(\d{4})/);
 
-    function isWithinMainRange(startTime, endTime) {
-        return (startTime >= mainStartTime && endTime <= mainEndTime);
+
+
+
+function isWithinMainRange(startTime, endTime, mainStartTime, mainEndTime) {
+    const toMinutes = (day, hour) => day * 24 * 60 + hour * 60;
+
+    const parse = (ddhh) => {
+        const day = parseInt(ddhh.slice(0, 2), 10);
+        const hour = parseInt(ddhh.slice(2, 4), 10);
+        return { day, hour };
+    };
+
+    const getDaysInMonth = (year, month) => {
+        return new Date(year, month + 1, 0).getDate(); // month: 0 = Jan, ..., 11 = Dec
+    };
+
+    // ใช้เวลาปัจจุบัน - 7 ชั่วโมง (UTC)
+    const now = new Date(Date.now() - 7 * 60 * 60 * 1000);
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth(); // 0-based (0=Jan)
+
+    const { day: mainStartDay, hour: mainStartHour } = parse(mainStartTime);
+    const { day: mainEndDay, hour: mainEndHour } = parse(mainEndTime);
+    const { day: subStartDay, hour: subStartHour } = parse(startTime);
+    const { day: subEndDay, hour: subEndHour } = parse(endTime);
+
+    const mainStart = toMinutes(mainStartDay, mainStartHour);
+
+    let daysInMonth = getDaysInMonth(year, month);
+    let mainEnd = toMinutes(mainEndDay, mainEndHour);
+    let subStart = toMinutes(subStartDay, subStartHour);
+    let subEnd = toMinutes(subEndDay, subEndHour);
+
+    const crossMonth = mainStartDay > mainEndDay;
+
+    if (crossMonth) {
+        mainEnd += daysInMonth * 24 * 60;
+        if (subStartDay < mainStartDay) subStart += daysInMonth * 24 * 60;
+        if (subEndDay < mainStartDay) subEnd += daysInMonth * 24 * 60;
     }
+
+    return subStart >= mainStart && subEnd <= mainEnd;
+}
+
 
     if (becmgMatch) {
         const startTime = becmgMatch[1];
@@ -186,7 +227,7 @@ function checkTime(line, index, errors, mainStartTime, mainEndTime) {
         const timeError = checkTimeRange(startTime, endTime);
         if (timeError) {
             errors.push(`Line ${index + 1} (BECMG): ${timeError}`);
-        } else if (!isWithinMainRange(startTime, endTime)) {
+        } else if (!isWithinMainRange(startTime, endTime, mainStartTime, mainEndTime)) {
             errors.push(`Line ${index + 1} (BECMG): Time range ${startTime}/${endTime} is not within the main period ${mainStartTime}/${mainEndTime}.`);
         }
     }
@@ -197,11 +238,13 @@ function checkTime(line, index, errors, mainStartTime, mainEndTime) {
         const timeError = checkTimeRange(startTime, endTime);
         if (timeError) {
             errors.push(`Line ${index + 1} (TEMPO): ${timeError}`);
-        } else if (!isWithinMainRange(startTime, endTime)) {
+        } else if (!isWithinMainRange(startTime, endTime, mainStartTime, mainEndTime)) {
             errors.push(`Line ${index + 1} (TEMPO): Time range ${startTime}/${endTime} is not within the main period ${mainStartTime}/${mainEndTime}.`);
         }
     }
 }
+
+
 
 
 

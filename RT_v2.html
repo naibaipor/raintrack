@@ -476,7 +476,7 @@ if (navigator.geolocation) {
     userPoint.style.top = y + "px";
     userPoint.style.display = "block";
 
-    console.log(`$lat , $lon`);
+    console.log(`${lat} , ${lon}`);
 
     info.innerHTML += `<br>ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}`;
   }, (err) => {
@@ -489,6 +489,7 @@ if (navigator.geolocation) {
 
 </body>
 </html>
+
 
 
 

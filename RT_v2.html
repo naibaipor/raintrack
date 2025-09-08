@@ -292,7 +292,7 @@ radarImage.addEventListener('click', (e) => {
     point1.style.display = 'none';
     point2.style.display = 'none';
     point3.style.display = 'none';
-    info.innerHTML = `คลิกเพื่อเลือกจุดที่ 1`;
+     = `คลิกเพื่อเลือกจุดที่ 1`;
   }
 });
 
@@ -470,15 +470,16 @@ if (navigator.geolocation) {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
 
+    console.log(`${lat} , ${lon}`);
+    info.innerHTML += `<br>ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}`;
+
     const {x, y} = projectLatLonToPixel(lat, lon);
 
     userPoint.style.left = x + "px";
     userPoint.style.top = y + "px";
     userPoint.style.display = "block";
 
-    console.log(`${lat} , ${lon}`);
 
-    info.innerHTML += `<br>ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}`;
   }, (err) => {
     console.error("ไม่สามารถดึงตำแหน่งได้:", err);
   });
@@ -489,6 +490,7 @@ if (navigator.geolocation) {
 
 </body>
 </html>
+
 
 
 

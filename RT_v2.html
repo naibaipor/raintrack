@@ -47,10 +47,10 @@
 
     .user-point {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 4px;
+  height: 4px;
   background: yellow;
-  border: 2px solid black;
+  border: 0px solid black;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   z-index: 1000;
@@ -444,10 +444,10 @@ radarImage.addEventListener("mousemove", function (e) {
 // กำหนดขอบเขต lat/lon ของภาพเรดาร์ (ต้องรู้ค่าจริงจากเรดาร์)
 // ตัวอย่าง: ครอบคลุมประเทศไทย (ประมาณ)
 const radarBounds = {
-  latMin: 5.5,   // ขอบล่าง (ใต้)
-  latMax: 20.5,  // ขอบบน (เหนือ)
-  lonMin: 97.5,  // ขอบซ้าย (ตะวันตก)
-  lonMax: 105.5  // ขอบขวา (ตะวันออก)
+  latMin: 13.1,   // ขอบล่าง (ใต้)
+  latMax: 17.5,  // ขอบบน (เหนือ)
+  lonMin: 101.6,  // ขอบซ้าย (ตะวันตก)
+  lonMax: 106.3  // ขอบขวา (ตะวันออก)
 };
 
 // element ของจุดผู้ใช้งาน
@@ -487,4 +487,5 @@ if (navigator.geolocation) {
 
 </body>
 </html>
+
 

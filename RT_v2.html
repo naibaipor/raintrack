@@ -185,7 +185,7 @@ function updateImage() {
   radarImage.src = imageUrls[imageIndex];
   lensImg.src = radarImage.src;
   radarImage.style.display = '';
-  info.innerHTML = `ภาพที่ ${imageIndex + 1} จาก ${imageUrls.length}`;
+  info.innerHTML += `ภาพที่ ${imageIndex + 1} จาก ${imageUrls.length}`;
 
   if (clickCount === 0) {
     // ยังไม่ได้เริ่มคลิกเลย → รีเซ็ตทุกจุด
@@ -243,7 +243,7 @@ radarImage.addEventListener('click', (e) => {
     point1.style.top = y + 'px';
     point1.style.display = 'block';
     clickCount = 1;
-    info.innerHTML = `กำลังรอจุดที่ 2...`;
+    info.innerHTML += `กำลังรอจุดที่ 2...`;
   } else if (clickCount === 1) {
     positions[1] = { x, y };
     imageIndices[1] = imageIndex;
@@ -292,7 +292,7 @@ radarImage.addEventListener('click', (e) => {
     point1.style.display = 'none';
     point2.style.display = 'none';
     point3.style.display = 'none';
-     info.innerHTML = `คลิกเพื่อเลือกจุดที่ 1`;
+     info.innerHTML += `คลิกเพื่อเลือกจุดที่ 1`;
   }
 });
 
@@ -490,6 +490,7 @@ if (navigator.geolocation) {
 
 </body>
 </html>
+
 
 
 

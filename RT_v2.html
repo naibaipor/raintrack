@@ -47,9 +47,9 @@
 
     .user-point {
   position: absolute;
-  width: 4px;
-  height: 4px;
-  background: yellow;
+  width: 8px;
+  height: 8px;
+  background: pink;
   border: 0px solid black;
   border-radius: 50%;
   transform: translate(-50%, -50%);
@@ -476,6 +476,8 @@ if (navigator.geolocation) {
     userPoint.style.top = y + "px";
     userPoint.style.display = "block";
 
+    console.log(`$lat , $lon`);
+
     info.innerHTML += `<br>ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}`;
   }, (err) => {
     console.error("ไม่สามารถดึงตำแหน่งได้:", err);
@@ -487,5 +489,6 @@ if (navigator.geolocation) {
 
 </body>
 </html>
+
 
 

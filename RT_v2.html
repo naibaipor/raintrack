@@ -203,6 +203,55 @@ function updateImage() {
 
 
 radarImage.onload = () => {
+
+// กำหนดขอบเขต lat/lon ของภาพเรดาร์ (ต้องรู้ค่าจริงจากเรดาร์)
+// ตัวอย่าง: ครอบคลุมประเทศไทย (ประมาณ)
+const radarBounds = {
+  latMin: 13.1,   // ขอบล่าง (ใต้)
+  latMax: 17.5,  // ขอบบน (เหนือ)
+  lonMin: 101.6,  // ขอบซ้าย (ตะวันตก)
+  lonMax: 106.3  // ขอบขวา (ตะวันออก)
+};
+
+// element ของจุดผู้ใช้งาน
+const userPoint = document.createElement("div");
+userPoint.className = "user-point";
+userPoint.style.display = "none";
+container.appendChild(userPoint);
+
+// แปลง lat/lon → พิกัด pixel บน radarImage
+function projectLatLonToPixel(lat, lon) {
+  const rect = radarImage.getBoundingClientRect();
+  const x = ((lon - radarBounds.lonMin) / (radarBounds.lonMax - radarBounds.lonMin)) * radarImage.clientWidth;
+  const y = ((radarBounds.latMax - lat) / (radarBounds.latMax - radarBounds.latMin)) * radarImage.clientHeight;
+  console.log(`${radarImage.clientWidth} , ${radarImage.clientHeight}`);
+  return {x, y};  
+}
+
+// หาตำแหน่งจริงของผู้ใช้งาน
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+
+    console.log(`${lat} , ${lon}`);
+    info.innerHTML += `ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}<br>`;
+
+    const {x, y} = projectLatLonToPixel(lat, lon);
+    console.log(`${x} , ${y}`);
+    
+    userPoint.style.left = x + "px";
+    userPoint.style.top = y + "px";
+    userPoint.style.display = "block";
+
+
+  }, (err) => {
+    console.error("ไม่สามารถดึงตำแหน่งได้:", err);
+  });
+}
+
+
+  
   if (positions[0]) {
     point1.style.left = positions[0].x + 'px';
     point1.style.top = positions[0].y + 'px';
@@ -440,58 +489,11 @@ radarImage.addEventListener("mousemove", function (e) {
   //console.log(`clientWidth: ${radarImage.clientWidth}, clientHeight: ${radarImage.clientHeight}`);
 });
 
-
-// กำหนดขอบเขต lat/lon ของภาพเรดาร์ (ต้องรู้ค่าจริงจากเรดาร์)
-// ตัวอย่าง: ครอบคลุมประเทศไทย (ประมาณ)
-const radarBounds = {
-  latMin: 13.1,   // ขอบล่าง (ใต้)
-  latMax: 17.5,  // ขอบบน (เหนือ)
-  lonMin: 101.6,  // ขอบซ้าย (ตะวันตก)
-  lonMax: 106.3  // ขอบขวา (ตะวันออก)
-};
-
-// element ของจุดผู้ใช้งาน
-const userPoint = document.createElement("div");
-userPoint.className = "user-point";
-userPoint.style.display = "none";
-container.appendChild(userPoint);
-
-// แปลง lat/lon → พิกัด pixel บน radarImage
-function projectLatLonToPixel(lat, lon) {
-  const rect = radarImage.getBoundingClientRect();
-  const x = ((lon - radarBounds.lonMin) / (radarBounds.lonMax - radarBounds.lonMin)) * radarImage.clientWidth;
-  const y = ((radarBounds.latMax - lat) / (radarBounds.latMax - radarBounds.latMin)) * radarImage.clientHeight;
-  console.log(`${radarImage.clientWidth} , ${radarImage.clientHeight}`);
-  return {x, y};  
-}
-
-// หาตำแหน่งจริงของผู้ใช้งาน
-if (navigator.geolocation) {
-  navigator.geolocation.getCurrentPosition((pos) => {
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-
-    console.log(`${lat} , ${lon}`);
-    info.innerHTML += `ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}<br>`;
-
-    const {x, y} = projectLatLonToPixel(lat, lon);
-    console.log(`${x} , ${y}`);
-    
-    userPoint.style.left = x + "px";
-    userPoint.style.top = y + "px";
-    userPoint.style.display = "block";
-
-
-  }, (err) => {
-    console.error("ไม่สามารถดึงตำแหน่งได้:", err);
-  });
-}
-
-
   </script>
 
 </body>
 </html>
+
 
 
 

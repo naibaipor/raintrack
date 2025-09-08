@@ -461,7 +461,8 @@ function projectLatLonToPixel(lat, lon) {
   const rect = radarImage.getBoundingClientRect();
   const x = ((lon - radarBounds.lonMin) / (radarBounds.lonMax - radarBounds.lonMin)) * radarImage.clientWidth;
   const y = ((radarBounds.latMax - lat) / (radarBounds.latMax - radarBounds.latMin)) * radarImage.clientHeight;
-  return {x, y};
+  console.log(`${radarImage.radarImage.clientHeight} , ${radarImage.clientHeight}`);
+  return {x, y};  
 }
 
 // หาตำแหน่งจริงของผู้ใช้งาน
@@ -471,10 +472,11 @@ if (navigator.geolocation) {
     const lon = pos.coords.longitude;
 
     console.log(`${lat} , ${lon}`);
-    info.innerHTML += `<br>ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}`;
+    info.innerHTML += `ตำแหน่งคุณ: lat=${lat.toFixed(4)}, lon=${lon.toFixed(4)}<br>`;
 
     const {x, y} = projectLatLonToPixel(lat, lon);
-
+    console.log(`${x} , ${y}`);
+    
     userPoint.style.left = x + "px";
     userPoint.style.top = y + "px";
     userPoint.style.display = "block";
@@ -490,6 +492,7 @@ if (navigator.geolocation) {
 
 </body>
 </html>
+
 
 
 
